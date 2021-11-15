@@ -18,7 +18,7 @@ def readUICFile():
     file = open(f'{DATA_DIR}{TEXAS_UIC_DIR}uif700.ebc', 'rb')
 
     mainDF = pd.DataFrame()
-    Limiting_Counter = False
+    Limiting_Counter = True
     wellct = 0
     check_stop = 10000
     for block in yield_blocks(file, block_size):
@@ -40,8 +40,8 @@ def readUICFile():
 
 def execute_values(conn, df, table):
     tuples = [tuple(x) for x in df.to_numpy()]
-    cols = '","'.join(list(df.columns))
-    cols = '"' + cols + '"'
+    cols = ','.join(list(df.columns))
+    cols = cols.replace("-", "_")
     query = f'INSERT INTO {table}({cols}) VALUES %s'
     print(query)
     cursor = conn.cursor()
