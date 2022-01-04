@@ -49,6 +49,7 @@ def bulkInsert(conn, df, table):
 
 if __name__ == "__main__":
     daMainDF = pd.read_pickle('daMainDF.pkl')
-    daMainDF = daMainDF.replace(r'\x00', ' ', regex=True)
-    bulkInsert(conn, daMainDF, "public.da_master")
+    #daMainDF = daMainDF.replace(r'\x00', ' ', regex=True)
+    print(daMainDF.head())
+    #bulkInsert(conn, daMainDF, "public.da_master_trailer")
     #execQry(conn, daMainDF, "public.da_master")
