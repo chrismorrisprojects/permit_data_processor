@@ -7,15 +7,15 @@ import psycopg2.extras as extras
 from dotenv import dotenv_values
 config = dotenv_values(".env")
 
-DATA_DIR = config['DATA_DIR']
-TEXAS_UIC_DIR = 'texas/uicdatabase/'
+BASE_DIR = config['DATA_DIR']
+DATA_DIR = 'texas/uicDatabase/'
 
 conn = psycopg2.connect(dbname=config['pgdatabase'], user=config['pgadmin'], password=config['pgpassword'])
 
 
 def readUICFile():
     block_size = 622
-    file = open(f'{DATA_DIR}{TEXAS_UIC_DIR}uif700.ebc', 'rb')
+    file = open(f'{BASE_DIR}{DATA_DIR}uif700.ebc', 'rb')
 
     mainDF = pd.DataFrame()
     Limiting_Counter = True
@@ -28,6 +28,7 @@ def readUICFile():
 
         startval = pic_any(block[:2])  ## first two characters of a block
         if startval == "01":
+            # TODO: Need to check and see if any other columns need to be treated as decimals.
             layout = uicLayout(startval)['layout']  ##identifies layout based on record start values
             parsed_vals = parse_record(block, layout)  ##formats the record and returns a formated {dict}
 
