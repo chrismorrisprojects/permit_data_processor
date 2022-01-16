@@ -4,7 +4,7 @@ import psycopg2
 import psycopg2.extras as extras
 import csv
 import io
-import asyncio
+from multiprocessing import Pool
 
 
 config = dotenv_values(".env")
@@ -13,7 +13,7 @@ BASE_DIR = config['DATA_DIR']
 DATA_DIR = 'texas/drillingMasterDatabaseWithTrailers/'
 naDate = '1800-01-01'
 dateFmt = "%Y%m%d"
-splitDF = pd.DataFrame()
+num_cores = 4
 
 
 tableDefs = {
@@ -60,21 +60,14 @@ dateCols = ['da_received_date', 'da_permit_issued_date', 'da_permit_amended_date
             'da_permit_well_status_date', 'da_permit_expired_date', 'da_permit_cancelled_date', 'da_final_update']
 numCols = ['da_surface_acres', 'da_surface_miles_from_city']
 
-async def splitFile(line, splitDF):
+def splitFile(line):
+    tempDF = pd.DataFrame(columns=colNames)
     if line[0:2] == "02":
-        ioStr = await io.StringIO(line)
-        tempDF = await pd.read_fwf(ioStr, colspecs=colSpecs, names=colNames, converters={34:str, 35:str})
-        splitDF = splitDF.append(tempDF)
-    return splitDF
-
-async def async_func():
-    print('Velotio ...')
-    await asyncio.sleep(1)
-    print('... Technologies!')
-
-async def main():
-    async_func()#this will do nothing because coroutine object is created but not awaited
-    await async_func()
+        ioStr = io.StringIO(line)
+        tempDF = pd.read_fwf(ioStr, colspecs=colSpecs, names=colNames, converters={34:str, 35:str})
+        return tempDF
+    else:
+        return tempDF
 
 
 def fmtColDate(df, colList, errAct, naFill, fmtStr):
@@ -116,12 +109,12 @@ def bulkInsert(conn, df, table):
 if __name__ == "__main__":
     file = open(f'{BASE_DIR}{DATA_DIR}daf802.txt', 'r')
     lines = file.readlines()
-    #TODO: This reads way too slow to loop over each line. Need to find a way to optimize this by usingh async or parallel to loop through the list. This script never finished.
-    loop = asyncio.get_event_loop()
-    result = loop.run_until_complete((splitFile(lines, splitDF)))
-    print(result.head())
-    #daMainDF = splitFile(lines)
-    #daMainDF = fmtColDate(daMainDF, dateCols, "coerce", naDate, dateFmt)
-    #daMainDF = fmtColNumeric(daMainDF, numCols, "coerce", 0)
-    #daMainDF = daMainDF.replace(r'\x00', ' ', regex=True)
-    #bulkInsert(conn, daMainDF, "public.da_master_trailer")
+    pool = Pool(num_cores)
+    daMainDF = pd.concat(pool.map(splitFile, lines))
+    pool.close()
+    pool.join()
+    daMainDF.to_pickle('completed_802_df.pkl')
+    daMainDF = fmtColDate(daMainDF, dateCols, "coerce", naDate, dateFmt)
+    daMainDF = fmtColNumeric(daMainDF, numCols, "coerce", 0)
+    daMainDF = daMainDF.replace(r'\x00', ' ', regex=True)
+    bulkInsert(conn, daMainDF, "public.da_master_trailer")
